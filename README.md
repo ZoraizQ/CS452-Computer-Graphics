@@ -1,1 +1,1 @@
-# CG-PA5
+See LMS for assignment handout.
