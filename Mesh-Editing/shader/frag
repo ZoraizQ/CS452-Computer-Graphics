@@ -26,8 +26,8 @@ void main()
     if(outputID == 2)
     {
         // Do something interesting here for extra credit.
-        // gl_FragColor = vec4(???, 1.0);
-        // return;
+        gl_FragColor = vec4(shadePhong(vec3(10, 100, 10)), 1.0);
+        return;
     }
 }
 
@@ -46,6 +46,27 @@ vec3 shadePhong(vec3 lightPos)
     // TODO sure that you have noticeable specular highlights in the shading.
     // TODO Variables to use: eyePos, lightPos, normal, vertex
 
+    // calculate diffuse and specular lighting values for each fragment 
+    vec3 color = vec3(255.0/255.0, 87.0/255.0, 51.0/255.0);
+    float p = 16.0; //specular exponent
+    vec3 l = normalize(lightPos - vertex); //l = light direction (normalized light vector)
+    vec3 v = normalize(eyePos - vertex); //v = viewer direction (camera vector, current frag to camera)
+    vec3 n = normalize(normal); //n = fragment normal
+    
+    const vec3 La = vec3(0.1, 0.1, 0.1); //ambient color of fragment
+    const float MAX_DIST = 2.5;
+    const float MAX_DIST_SQUARED = MAX_DIST * MAX_DIST;
+    float distFactor = 1.0 - (1.0/MAX_DIST_SQUARED);
 
-    return vec3(0, 0, 0);
+    //light falloff 1/R^2, no distance factor here since only 1 light source
+    float diffuseDot = dot(n, l); //cos(theta)
+    vec3 kd = color;
+    vec3 Ld = kd * clamp(diffuseDot, 0.0, 1.0) * distFactor;
+
+    vec3 h = normalize(v + l); //halfangle vector close to normal, bivector of v and l
+    vec3 ks = min(color + 0.5, 1.0); //smallest from white or current color+0.5
+    float specularDot = dot(n, h); //cos(alpha)
+    vec3 Ls = ks * pow(max(0.0, clamp(specularDot, 0.0, 1.0)), p) * distFactor; //specular compoennt
+    
+    return (La + Ld + Ls); //blinn-phong model
 }

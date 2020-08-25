@@ -45,16 +45,26 @@ void Triangle::draw(DrawRend *dr, Matrix3x3 global_transform) {
  * Calculate the p_bary vector containing the barycentric coordinates of the point p.
  */
  Color ColorTri::color(float x0, float y0,float x1, float y1,float x2, float y2, float px, float py, SampleParams sp) {
-   // Part 4: Fill this in.
-   // Some variables that you might find helpful:
-   Vector2D p0 = Vector2D(x0,y0);
-   Vector2D p1 = Vector2D(x1,y1);
-   Vector2D p2 = Vector2D(x2,y2);
-   Vector2D p = Vector2D(px,py);
-   Vector2D p_bary;
-   p0_col; p1_col; p2_col;
-   //...
-   return Color();
+  // Part 4: Fill this in.
+  // Some variables that you might find helpful:
+  Vector2D p0 = Vector2D(x0,y0);
+  Vector2D p1 = Vector2D(x1,y1);
+  Vector2D p2 = Vector2D(x2,y2);
+  Vector2D p = Vector2D(px,py);
+  Vector3D p_bary;
+  p0_col; p1_col; p2_col; 
+   
+  // from Vector2D.h -> cross product = return v1.x*v2.y - v1.y*v2.x;
+  float areaOfParallABC = cross(p1-p0, p2-p0); // ||AB x AC||, could have been BC x BA or CA x AB, represents entire triangle
+  //magnitude of the x product == area of the parallelogram (optimization)
+  //alpha
+  p_bary.x = cross(p2-p1, p-p1) / areaOfParallABC; // areaOfParallBCP (||BC x BP||) / areaOfParallABC
+  //beta
+  p_bary.y = cross(p0-p2, p-p2) / areaOfParallABC; // areaOfParallCAP (||CA x CP||) / areaOfParallABC
+  //gamma = 1-alpha-beta
+  p_bary.z = 1-p_bary.x-p_bary.y;
+
+  return p_bary.x* p0_col + p_bary.y* p1_col + p_bary.z * p2_col; // multiply each triangle's vertex color with corr scalar (alpha, beta, gamma) and add them up to interpolate
  }
 
  /**
@@ -64,17 +74,30 @@ void Triangle::draw(DrawRend *dr, Matrix3x3 global_transform) {
   * Use your calculated value of p_bary to calculate sp.p_uv
   */
  Color TexTri::color(float x0, float y0,float x1, float y1,float x2, float y2, float px, float py, SampleParams sp) {
-   // Part 5: Fill this in, similar to ColorTri::color.
-   // Some variables that you might find helpful:
-   Vector2D p0 = Vector2D(x0,y0);
-   Vector2D p1 = Vector2D(x1,y1);
-   Vector2D p2 = Vector2D(x2,y2);
-   Vector2D p = Vector2D(px,py);
-   Vector2D p_bary;
-   p0_uv; p1_uv; p2_uv; sp.p_uv;
-   //...
-   return tex->sample(sp);
-   // implement sample() in texture.cpp
+  // Part 5: Fill this in, similar to ColorTri::color.
+  // Some variables that you might find helpful:
+  Vector2D p0 = Vector2D(x0,y0);
+  Vector2D p1 = Vector2D(x1,y1);
+  Vector2D p2 = Vector2D(x2,y2);
+  Vector2D p = Vector2D(px,py);
+  Vector3D p_bary;
+  p0_uv; p1_uv; p2_uv; sp.p_uv; 
+  //...
+
+  float areaOfParallABC = cross(p1-p0, p2-p0); // ||AB x AC||, could have been BC x BA or CA x AB, represents entire triangle
+  //magnitude of the x product == area of the parallelogram (optimization)
+  
+  //alpha
+  p_bary.x = cross(p2-p1, p-p1) / areaOfParallABC; // areaOfParallBCP (||BC x BP||) / areaOfParallABC
+  //beta
+  p_bary.y = cross(p0-p2, p-p2) / areaOfParallABC; // areaOfParallCAP (||CA x CP||) / areaOfParallABC
+  //gamma = 1-alpha-beta
+  p_bary.z = 1-p_bary.x-p_bary.y;
+
+  //uv = texel coords, s,t, just multiply vectors with corresponding alpha, beta, gammas and get uv for point p
+  sp.p_uv = p_bary.x * p0_uv + p_bary.y * p1_uv + p_bary.z * p2_uv;
+  return tex->sample(sp);
+  // implement sample() in texture.cpp
  }
 
 void Group::draw(DrawRend *dr, Matrix3x3 global_transform) {

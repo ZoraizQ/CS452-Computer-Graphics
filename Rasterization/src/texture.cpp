@@ -33,10 +33,59 @@ Color Texture::sample_nearest(Vector2D uv) {
   }
 }
 
+bool isBtw0And(float val, int upper){
+  if (val >= 0 && val < upper)
+    return true;
+  else
+    return false;
+}
+
+Color interpolate(double max, double min, double p, Color Ia, Color Ib){
+  double total = max-min;
+  return ((max-p)/ total) * Ia  + ((p-min)/total) * Ib;
+}
+
+
 Color Texture::sample_bilinear(Vector2D uv) {
   // Part 5: Fill this in.
   // Hint: look at sample_nearest
-  return Color();
+  int level = 0; //first scale of the mipmap (largest)
+  int w = mipmap[level].width; // get width of mipmap level 0 (texture with rgb channels for a lot of scales)
+  int h = mipmap[level].height; //get height of mipmap level 0
+
+  double X_max = ceil(uv.x * w); //specify X from texture coordinates, scaled by width, but this time with upper,lower bounds all specified
+  double X_min = floor(uv.x * w);
+  double Y_max = ceil(uv.y * h);
+  double Y_min = floor(uv.y * h);
+  double X = uv.x * w;
+  double Y = uv.y * h;
+
+  if (isBtw0And(X_max,w) && isBtw0And(X_min,w) && isBtw0And(Y_max,h) && isBtw0And(Y_min,h)) { //ensuring X and Y are within the mipmap level 0 texture
+    /* A -- D
+       |    |
+       B -- C  */
+    int indexA = 4 * (Y_max * w + X_min); // texel index for corner A 
+    int indexB = 4 * (Y_min * w + X_min); // B
+    int indexC = 4 * (Y_min * w + X_max); // C
+    int indexD = 4 * (Y_max * w + X_max); // D
+
+    //testing slides example: (146.1)
+    // X_max = 15; Y_max = 21;
+    // Y_min = 20; X_min = 14;
+    // X = 14.5; Y = 20.2;
+    // indexA = 91; indexD = 210;
+    // indexB = 162; indexC = 95;
+    
+    //need to interpolate between these 4 texel indexes
+    Color colorA = Color(mipmap[level].texels[indexA] / 255.0f, mipmap[level].texels[indexA+1] / 255.0f, mipmap[level].texels[indexA+2] / 255.0f);
+    Color colorB = Color(mipmap[level].texels[indexB] / 255.0f, mipmap[level].texels[indexB+1] / 255.0f, mipmap[level].texels[indexB+2] / 255.0f);
+    Color colorC = Color(mipmap[level].texels[indexC] / 255.0f, mipmap[level].texels[indexC+1] / 255.0f, mipmap[level].texels[indexC+2] / 255.0f);
+    Color colorD = Color(mipmap[level].texels[indexD] / 255.0f, mipmap[level].texels[indexD+1] / 255.0f, mipmap[level].texels[indexD+2] / 255.0f);
+    
+    Color I_hor1 = interpolate(X_max, X_min, X, colorA, colorD);
+    Color I_hor2 = interpolate(X_max, X_min, X, colorB, colorC);
+    return interpolate(Y_max, Y_min, Y, I_hor1, I_hor2);
+  }
 }
 
 

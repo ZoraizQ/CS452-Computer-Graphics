@@ -502,7 +502,7 @@ void DrawRend::rasterize_fig( float x0, float y0,
                          float x2, float y2,
                          Color color, Triangle *tri) {
                            if(!toggle_scanline) rasterize_triangle(x0,y0,x1,y1,x2,y2,color,tri);
-                           else rasterize_scanline(x0,y0,x1,y1,x2,y2,color,tri);
+                           //else rasterize_scanline(x0,y0,x1,y1,x2,y2,color,tri);
                          }
 
 bool isInside(float Px, float Py, float Ax, float Ay, float Bx, float By, float Cx, float Cy) { //had to rename this since inside function already existed in triangulation.cpp
@@ -543,61 +543,6 @@ void DrawRend::rasterize_triangle( float x0, float y0,
   //         Hint: Use the fill_color() function like this:
   //             samplebuffer[row][column].fill_color(sub_row, sub_column, color);
   //         You also need to implement get_pixel_color() function to support supersampling.
-  
-  // given the 3 vertices of the triangle calculate the 2D minimum bounding box
-  uint x_min, x_max, y_min, y_max, y, x, by, bx; //Floating Point Unit in modern CPUs
-  x_min = min(x0, min(x1, x2));
-  x_max = max(x0, max(x1, x2));
-  y_min = min(y0, min(y1, y2));
-  y_max = max(y0, max(y1, y2));
-
-  //cout << x0 << " " << x1 << " " << x2 << " " << y0 << " " << y1 << " " << y2 << '\n';
-  //cout << "xmin: " << x_min << " xmax:" << x_max << " ymin:" << y_min << " ymax: " << y_max << "\n\n";
-  
-  uint max_side = sqrt(sample_rate); 
-  float splen = 1.0f/max_side; // length of sub-pixel
-  float halfsplen = splen/2.0f; // length of sub-pixel
-  float spx, spy; //coordinates of center of subpixel 
-  uint bsize = 8; //block size, can be varied       
-  //ATTEMPT TO SPEED UP RASTERIZATION, NOT CHECKING EVERY SAMPLE IN THE BOUNDING BOX NOW
-
-  for (by = y_min; by <= y_max; by += bsize){ // testing in blocks of 8
-    for (bx = x_min; bx <= x_max; bx += bsize){ //bx,by block coordinates (top-left)
-      // test all 4 corners of the block
-      bool c1Inside = isInside(bx,by, x2, y2, x1, y1, x0, y0),
-        c2Inside = isInside(bx,by+bsize-1, x2, y2, x1, y1, x0, y0),
-        c3Inside = isInside(bx+bsize-1,by, x2, y2, x1, y1, x0, y0),
-        c4Inside = isInside(bx+bsize-1,by+bsize-1, x2, y2, x1, y1, x0, y0);
-      
-      if (c1Inside && c2Inside && c3Inside && c4Inside){  // if all 4 corners of the block are inside
-        // fill the whole thing without point-in-triangle checks or supersampling, fill_pixel used
-        for (uint j = by; j < by+bsize; j++){
-          for (uint i = bx; i < bx+bsize; i++){
-            samplebuffer[j][i].fill_pixel(color); //no need to check for these samples
-          }
-        }
-      }
-      else{
-        for (y = by; y < by+bsize; y++){
-          for (x = bx; x < bx+bsize; x++){
-              //assuming y and x are at the top-left of the pixel, 1x1 unit
-              for (uint sub_row = 0; sub_row < max_side; sub_row++){ // e.g. if max_side = 2, then sub_row 0,1
-                for (uint sub_column = 0; sub_column < max_side; sub_column++){ // so 4 pixels at indices [0][0], [0][1], [1][0], [1][1]
-                  spy = y + sub_row * splen + halfsplen; // if x = 0, then spx = 0.25, 0.75 for sample_rate = 4
-                  spx = x + sub_column * splen + halfsplen;
-                  
-                  // check if the sub-pixel is inside the triangle
-                  if (isInside(spx,spy, x2, y2, x1, y1, x0, y0)) //Each samplebuffer instance stores one pixel
-                    samplebuffer[y][x].fill_color(sub_row, sub_column, color); //only fill color (store pixel color in sample buffer) if the sub-pixel is inside the triangle
-                }  
-              }
-          
-          }  
-        }
-      }
-    }  
-  }
-  
   // Part 4: Add barycentric coordinates and use tri->color() for shading when available.
   //
   // Part 5: Fill in the SampleParams struct and pass it to the tri->color function.
@@ -605,16 +550,194 @@ void DrawRend::rasterize_triangle( float x0, float y0,
   //              SampleParams sp = SampleParams();
   //              sp.psm = psm;
   //              samplebuffer[row][column].fill_color(row, column, tri->color(x0,y0,x1,y1,x2,y2,row,column,sp));
+  
+  // given the 3 vertices of the triangle calculate the 2D minimum bounding box
+  float x_min, x_max, y_min, y_max, y, x, by, bx; //Floating Point Unit in modern CPUs
+  x_min = floor(min(x0, min(x1, x2)));
+  x_max = ceil(max(x0, max(x1, x2)));
+  y_min = floor(min(y0, min(y1, y2)));
+  y_max = ceil(max(y0, max(y1, y2)));
+
+  cout << x0 << " " << x1 << " " << x2 << " " << y0 << " " << y1 << " " << y2 << '\n';
+  cout << "xmin: " << x_min << " xmax:" << x_max << " ymin:" << y_min << " ymax: " << y_max << "\n\n";
+  
+  uint max_side = sqrt(sample_rate); 
+  float splen = 1.0f/max_side; // length of sub-pixel
+  float halfsplen = splen/2.0f; // length of sub-pixel
+  float spx, spy; //coordinates of center of subpixel 
+  uint bsize = 4; //block size, can be varied       
+  //ATTEMPT TO SPEED UP RASTERIZATION, NOT CHECKING EVERY SAMPLE IN THE BOUNDING BOX NOW
+
+  for (by = y_min; by <= y_max; by += bsize){ // testing in blocks of 8
+    for (bx = x_min; bx <= x_max; bx += bsize){ //bx,by block coordinates (top-left)
+      // test all 4 corners of the block
+      bool c1Inside = isInside(bx,by, x2, y2, x1, y1, x0, y0), c2Inside = isInside(bx,by+bsize-1, x2, y2, x1, y1, x0, y0),
+      c3Inside = isInside(bx+bsize-1,by, x2, y2, x1, y1, x0, y0), c4Inside = isInside(bx+bsize-1,by+bsize-1, x2, y2, x1, y1, x0, y0);
+      bool pixelInside = c1Inside && c2Inside && c3Inside && c4Inside; // if all 4 corners of the block are inside
+      // then fill the whole thing without point in triangle checks but still need to do supersampling now
+
+      for (y = by; y < by+bsize; y++){
+        for (x = bx; x < bx+bsize; x++){
+            //assuming y and x are at the top-left of the pixel, 1x1 unit
+            for (uint sub_row = 0; sub_row < max_side; sub_row++){ // e.g. if max_side = 2, then sub_row 0,1
+              for (uint sub_column = 0; sub_column < max_side; sub_column++){ // so 4 pixels at indices [0][0], [0][1], [1][0], [1][1]
+                spy = y + sub_row * splen + halfsplen; // if x = 0, then spx = 0.25, 0.75 for sample_rate = 4
+                spx = x + sub_column * splen + halfsplen;
+                
+                //no need to check for these samples
+                if (pixelInside){
+                  if (tri != NULL){
+                    SampleParams sp = SampleParams();
+                    sp.psm = psm;
+                    samplebuffer[y][x].fill_color(sub_row, sub_column, tri->color(x0,y0,x1,y1,x2,y2,spx,spy,sp));
+                  }
+                  else{
+                    samplebuffer[y][x].fill_color(sub_row, sub_column, color); //only fill color (store pixel color in sample buffer) if the sub-pixel is inside the triangle
+                  }
+                }
+                else if (isInside(spx,spy, x2, y2, x1, y1, x0, y0)){ //Each samplebuffer instance stores one pixel
+                  if (tri != NULL){
+                    SampleParams sp = SampleParams();
+                    sp.psm = psm;
+                    samplebuffer[y][x].fill_color(sub_row, sub_column, tri->color(x0,y0,x1,y1,x2,y2,spx,spy,sp));
+                  }
+                  else{
+                    samplebuffer[y][x].fill_color(sub_row, sub_column, color);
+                  }
+                }
+              }  
+            }
+    
+        }  
+      }
+    }  
+  }
+  // GOT PRETTY CLOSE (test3.svg for proof), UNCOMMENT 617-637, COMMENT 555-616
+  
+  // cout<<"Scanline"<<endl; //To check if its works
+  // Coord vert[3];
+  // float y[] = {y0,y1,y2,y0}; // ordering of y coords in vertices in triangle
+  // float x[] = {x0,x1,x2,x0};    
+  // //TRIANGLE, so 3 vertices and edges = 01, 12, 20
+  // for( int i=0; i<3; i++){ //iterating for all 3 vertices
+  //   vert[i].yMax = max(y[i],y[i+1]); //if i = 0, in edge 01, max y selected
+  //   vert[i].yMin = min(y[i],y[i+1]); //if i = 2, in edge 20, min y selected
+  //   if(min(y[i],y[i+1])==y[i]){
+  //     vert[i].xMin = x[i];
+  //     vert[i].xMax = x[i+1];
+  //   }
+  //   else{
+  //     vert[i].xMin = x[i+1];
+  //     vert[i].xMax = x[i];
+  //   }
+  //   //xMin and xMax calculated similarly for this edge
+  //   // e0.invSlope = (e0.xMax-e0.xMin)/(e0.yMax-e0.yMin);
+  //   vert[i].invSlope = (x[i+1]-x[i])/(y[i+1]-y[i]); //(x2-x1)/(y2-y1) == 1/m
+  // }
+  // scanLine(vert,3, color); //pass the resultant vertices to scanLine, with count = 3 and color
+  
 }
 
-
-void DrawRend::rasterize_scanline( float x0, float y0,
-                        float x11, float y1,
-                        float x22, float y2,
-                        Color color, Triangle *tri) {
-  //Part 6: Implement scan line. The process of passing colors should be the same.
-  vector<vector<float>> activeEdgeTable;
-  vector<vector<float>> edgeTable;
-
+void DrawRend::BubbleSort(vector<Coord> &arr,bool set){ //if set == 1, sort w.r.t x else if 0 then w.r.t y
+  if (arr.size() < 2)
+    return;
+  int i, j, flag = 1;
+  Coord temp; //INSERT CODE HERE
+   
+  int len = arr.size();
+  if (!set) //sort w.r.t y
+    for(i = 1; (i < len) && flag; i++){
+      flag = 0;
+      for (j=0; j < (len -1); j++){
+        if (arr[j].yMin < arr[j+1].yMin){ 
+              temp = arr[j];
+              arr[j] = arr[j+1];
+              arr[j+1] = temp;
+              flag = 1;
+        }
+        else if (arr[j].yMin == arr[j+1].yMin){
+          if (arr[j].yMax < arr[j+1].yMax){
+            temp = arr[j];
+            arr[j] = arr[j+1];
+            arr[j+1] = temp;
+            flag = 1;
+          }
+        }
+      }
+    }
+  else //sort w.r.t x
+    for(i = 1; (i < len) && flag; i++){
+      flag = 0;
+      for (j=0; j < (len -1); j++){
+        if (arr[j].x > arr[j+1].x){
+          temp = arr[j];
+          arr[j] = arr[j+1];
+          arr[j+1] = temp;
+          flag = 1;
+        }
+      }
+    }
 }
+
+void DrawRend::scanLine(Coord *verticess, int nVertices, Color c){
+  std::vector<Coord> ET,AET;
+
+  // You code start here /////////////
+  // minimum yMin from all coords given
+  int ymin = min(min(verticess[2].yMin, verticess[1].yMin),verticess[0].yMin);
+  int ymax = max(max(verticess[2].yMax,verticess[1].yMax),verticess[0].yMax);
+  
+  //Populate Edge Table (ET)
+  for (int i = 0; i < nVertices; ++i){ // 3 vertices so 3 edges formed
+    //Min and max y-values (as integers), x-value associated with ymin, slope inverse (1/m)
+    ET.push_back(verticess[i]); //INSERT CODE HERE
+  }
+
+  int i,j;
+  BubbleSort(ET,0); //sort by y initially
+  
+  //For each scanline Update ET and AET
+  for (int y = ymin; y<=ymax; ++y){ //where y == line
+    i = ET.size()-1;
+    while(i >= 0){
+    //insert records in AET
+    //INSERT CODE HERE
+      if (y == ET[i].yMin){ //move any edges from the ET to the AET where y = y min
+        ET[i].y = y;
+        ET[i].x = ET[i].xMin;
+        AET.push_back(ET[i]);
+        ET.erase(ET.begin()+i);
+      }
+      i--;
+    }
+    BubbleSort(AET,1); //sort AET on x
+    
+    // for (int i = 0; i < AET.size(); i++){
+    //   cout << AET[i].yMin << " " << AET[i].yMax << " " << AET[i].xMin << " " << AET[i].xMax << endl;
+    // }
+
+    if(AET.size() > 1){ 
+      
+      for (j = 1; j < AET.size(); j=j+2){
+        rasterize_line(AET[j-1].x,AET[j-1].y,AET[j].x,AET[j].y,c);
+      }
+
+      j = AET.size()-1;
+      while (j >= 0){
+        //update AET
+        //INSERT CODE HERE
+        //update x and y for all active edges
+        AET[j].y++;
+        AET[j].x += AET[j].invSlope;
+        if (y == AET[j].yMax){ //Remove from the AET any edges where y = y max
+          AET.erase(AET.begin()+j); //erase AET[j]
+        }
+        j--;
+      }
+    }
+    
+  } 
+  // You code end here /////////////
+  
+  }
 }

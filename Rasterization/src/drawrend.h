@@ -13,6 +13,18 @@ using namespace std;
 
 namespace CGL {
 
+typedef struct
+
+{
+float x;
+float y;
+int xMax;
+int yMax;
+int xMin;
+int yMin;
+int invSlope;
+} Coord;
+
 class DrawRend : public Renderer {
  public:
   DrawRend(std::vector<SVG*> svgs_):
@@ -67,11 +79,10 @@ class DrawRend : public Renderer {
                            float x1, float y1,
                            float x2, float y2,
                            Color color, Triangle *tri = NULL );
-
-  void rasterize_scanline( float x0, float y0,
-                          float x1, float y1,
-                          float x2, float y2,
-                          Color color, Triangle *tri = NULL );
+  
+  void BubbleSort(vector<Coord> &arr,bool set);
+  
+  void scanLine(Coord *verticess, int nVertices, Color c);
 
 
 

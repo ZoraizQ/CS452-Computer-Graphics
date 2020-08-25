@@ -12,6 +12,20 @@ using namespace CGL;
 
 void Plane::collide(PointMass &pm) {
   // TODO (Part 3): Handle collisions with planes.
+  Vector3D lpToPlane = point - pm.last_position;
+  Vector3D pToPlane = point - pm.position;
+
+  Vector3D normaldir = normal.unit();
+  // using vector to point (lp and p) in plane with the normal to check with the dot product if one of them has crossed over and are not on the same side (intersection with plane)
+  bool notOnSameSide = (dot(pToPlane, normal) <= 0 && dot(lpToPlane, normal) > 0) || (dot(lpToPlane, normal) <= 0 && dot(pToPlane, normal) > 0);
+  if(notOnSameSide){
+    double distance = dot(pToPlane, normaldir); //distance from current pm pos to plane in direction of normal
+    Vector3D tangentPoint = pm.position + distance * normaldir; //using p = o + td, get tangent point from pm's position going in direction of normal by distance calculated
+    
+    Vector3D correction = tangentPoint - pm.last_position; //correction vector to bring pm from last pos to tangent point
+    correction += normal * SURFACE_OFFSET; //lift it slightly upwards (use normal) from the plane by the given surface offset
+    pm.position = pm.last_position + correction * (1.0 - friction); //apply with friction
+  }
 
 }
 
